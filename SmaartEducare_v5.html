@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Management App</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;color:#182230}
+button,input,select,textarea{font:inherit}button{cursor:pointer}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#2563eb,#7c3aed)}
+.login-card{background:#fff;width:min(430px,100%);padding:30px;border-radius:20px;box-shadow:0 20px 60px #0003}
+.login-card h1{margin:0 0 8px}.muted{color:#687386;font-size:14px}.login-card input,.login-card select,.form input,.form select,.form textarea{width:100%;padding:11px;border:1px solid #d6dce5;border-radius:9px;margin-top:6px;background:#fff}
+.field{margin:13px 0}.btn{border:0;border-radius:9px;padding:11px 15px;background:#2563eb;color:white;font-weight:600}.btn.secondary{background:#e9eef7;color:#26364a}.btn.danger{background:#dc2626}.btn.success{background:#16a34a}
+.demo{background:#f1f5ff;padding:12px;border-radius:10px;margin-top:16px;font-size:13px}
+.app{display:none;min-height:100vh}.sidebar{position:fixed;left:0;top:0;bottom:0;width:245px;background:#111827;color:white;padding:20px;overflow:auto}.brand{font-size:21px;font-weight:800;margin-bottom:22px}.nav button{display:block;width:100%;text-align:left;background:transparent;color:#cbd5e1;border:0;padding:11px 12px;border-radius:8px;margin:4px 0}.nav button.active,.nav button:hover{background:#263449;color:#fff}.main{margin-left:245px;padding:22px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:22px}.topbar h2{margin:0}.userpill{background:white;border:1px solid #e1e6ee;padding:9px 12px;border-radius:10px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.card{background:white;border:1px solid #e2e7ef;border-radius:14px;padding:18px}.card .num{font-size:28px;font-weight:800;margin-top:7px}
+.panel{background:white;border:1px solid #e2e7ef;border-radius:14px;padding:18px;margin-top:18px}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.panel h3{margin:0}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid #edf0f4;white-space:nowrap}th{background:#f8fafc;font-size:13px}
+.badge{display:inline-block;padding:4px 8px;border-radius:99px;font-size:12px;font-weight:700}.present{background:#dcfce7;color:#166534}.absent{background:#fee2e2;color:#991b1b}.pending{background:#fef3c7;color:#92400e}
+.actions{display:flex;gap:7px;flex-wrap:wrap}.small{padding:7px 9px;font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form textarea{min-height:90px;resize:vertical}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:18px;z-index:10}.modal.show{display:flex}.modal-box{background:#fff;width:min(650px,100%);max-height:90vh;overflow:auto;border-radius:16px;padding:22px}.modal-head{display:flex;justify-content:space-between;align-items:center}.close{border:0;background:#eef2f7;border-radius:8px;padding:7px 10px}
+.toast{position:fixed;right:20px;bottom:20px;background:#111827;color:white;padding:12px 16px;border-radius:10px;display:none;z-index:30}
+.search{padding:10px;border:1px solid #d6dce5;border-radius:9px;min-width:200px}
+@media(max-width:850px){.sidebar{position:relative;width:100%;height:auto}.main{margin-left:0}.app{display:block}.nav{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}.nav button{font-size:12px}.cards{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.main{padding:13px}.cards,.grid2,.form-grid{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.nav{grid-template-columns:1fr 1fr}.search{min-width:0;width:100%}}
+</style>
+</head>
+<body>
+
+<section id="login" class="login">
+<div class="login-card">
+  <h1>Class Management</h1>
+  <p class="muted">Attendance • Homework • Exams • Results • Announcements</p>
+  <div class="field"><label>Login as</label>
+    <select id="role"><option value="student">Student</option><option value="teacher">Teacher</option><option value="admin">Admin</option></select>
+  </div>
+  <div class="field"><label id="loginUserLabel">Teacher ID / Student ID / Username</label><input id="username" placeholder="Enter Teacher ID or Student ID"></div>
+  <div class="field" id="passwordField"><label>Password</label><input id="password" type="password" placeholder="Enter password"></div>
+  <button class="btn" style="width:100%" onclick="login()">Login</button>
+  <div class="muted" id="loginHint">Admin and Teacher use their account credentials. Students sign in using the Student ID assigned by Admin.</div>
+</div>
+</section>
+
+<section id="app" class="app">
+<aside class="sidebar">
+  <div class="brand">📚 Class Manager</div>
+  <div id="nav" class="nav"></div>
+  <button class="btn danger" style="width:100%;margin-top:18px" onclick="logout()">Logout</button>
+</aside>
+<main class="main">
+  <div class="topbar"><div><h2 id="pageTitle">Dashboard</h2><div class="muted">Manage your class from one place</div></div><div style="display:flex;align-items:center;gap:10px"><button class="btn secondary" id="notificationBtn" onclick="showNotifications()" title="Notifications">🔔 <span id="notificationCount">0</span></button><button class="btn secondary small" onclick="enableNotifications()" title="Enable browser notifications">Enable notifications</button><div class="userpill" id="who"></div></div></div>
+  <div id="content"></div>
+</main>
+</section>
+
+<div id="modal" class="modal"><div class="modal-box"><div class="modal-head"><h3 id="modalTitle"></h3><button class="close" onclick="closeModal()">✕</button></div><div id="modalBody"></div></div></div>
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://ozbqmujxrpwgjyzktbct.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_Rk9vFI0urcMds80neD6V_w_ujRHLPr3";
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let cloudSyncing=false;
+let notificationTimer=null;
+let notificationBaseline=new Set();
+let notificationSeen=new Set();
+let pushRegistration=null;
+
+async function registerSchoolServiceWorker(){
+ if(!('serviceWorker' in navigator))return;
+ try{
+   pushRegistration=await navigator.serviceWorker.register('./sw.js');
+   console.log('School service worker registered');
+ }catch(e){console.warn('Service worker unavailable:',e.message)}
+}
+
+const USERS={admin:{password:"1234",name:"Administrator",username:"admin"}};
+const defaultData={
+ students:[
+  {id:1,studentId:"STU-001",name:"Aarav Sharma",class:"9-A",standard:"9th",roll:"1",parent:"Rajesh Sharma",phone:"9876543210",attendance:92,attendanceStatus:"Present",marks:{Math:88,Science:91,English:84}},
+  {id:2,studentId:"STU-002",name:"Ananya Patel",class:"9-A",standard:"9th",roll:"2",parent:"Meena Patel",phone:"9876543211",attendance:96,attendanceStatus:"Present",marks:{Math:94,Science:89,English:92}},
+  {id:3,studentId:"STU-003",name:"Rohan Singh",class:"9-A",standard:"9th",roll:"3",parent:"Amit Singh",phone:"9876543212",attendance:87,attendanceStatus:"Present",marks:{Math:78,Science:82,English:75}}
+ ],
+ homework:[
+  {id:1,subject:"Mathematics",title:"Quadratic Equations",due:"2026-10-02",status:"Pending"},
+  {id:2,subject:"Science",title:"Motion Worksheet",due:"2026-10-04",status:"Pending"},
+  {id:3,subject:"English",title:"Grammar Practice",due:"2026-10-06",status:"Submitted"}
+ ],
+ announcements:[
+  {id:1,title:"Unit Test",text:"Unit test starts next Monday. Bring your required stationery.",date:"2026-09-29"},
+  {id:2,title:"Parent Meeting",text:"Parent-teacher meeting will be held this Saturday.",date:"2026-09-30"}
+ ],
+ teachers:[{id:1,teacherId:"TCH001",name:"Class Teacher",subjects:["Mathematics","Science","English"],classes:["9-A"],username:"TCH001",password:"1234"}],
+ standards:[{id:1,name:"9th",sections:["A"],classTeacher:"Class Teacher",room:"Room 101"}],
+ subjects:["Mathematics","Science","English"],
+ exams:[{id:1,name:"Unit Test 1",date:"2026-10-05",standard:"9th",subject:"Mathematics",maxMarks:100}],
+ timetable:[
+  {id:1,day:"Monday",time:"09:00 - 09:45",subject:"Mathematics",teacher:"Class Teacher",standard:"9th-A",room:"Room 101"},
+  {id:2,day:"Monday",time:"09:45 - 10:30",subject:"Science",teacher:"Class Teacher",standard:"9th-A",room:"Room 101"},
+  {id:3,day:"Tuesday",time:"09:00 - 09:45",subject:"English",teacher:"Class Teacher",standard:"9th-A",room:"Room 101"},
+  {id:4,day:"Tuesday",time:"09:45 - 10:30",subject:"Mathematics",teacher:"Class Teacher",standard:"9th-A",room:"Room 101"}
+ ]
+};
+let data=JSON.parse(localStorage.getItem("classManagerData")||"null")||defaultData;
+if(!data.attendanceHistory)data.attendanceHistory={};
+let attendanceSelectedDate="";
+let current=null,currentPage="dashboard";
+
+// Access helpers: keep every role scoped to its own assigned standards/students.
+function getCurrentTeacher(){
+  if(current?.role!=="teacher") return null;
+  return (data.teachers||[]).find(t=>t.id===current.teacherDbId || (t.teacherId||t.username||"").toLowerCase()===(current.teacherId||"").toLowerCase()) || null;
+}
+function teacherAllowedClasses(){
+  const t=getCurrentTeacher();
+  return current?.role==="teacher" ? (t?.classes||[]) : [];
+}
+function studentMatchesClass(st, cls){
+  const c=st?.class||st?.standard||"";
+  return c===cls || st?.standard===cls || c.startsWith(cls+"-");
+}
+function visibleStudentsForRole(){
+  if(current?.role==="student") return data.students.filter(s=>s.id===current.studentDbId);
+  if(current?.role==="teacher") {
+    const classes=teacherAllowedClasses();
+    return classes.length ? data.students.filter(s=>classes.some(c=>studentMatchesClass(s,c))) : [];
+  }
+  return data.students.slice();
+}
+function save(){
+ localStorage.setItem("classManagerData",JSON.stringify(data));
+ syncToSupabase();
+}
+async function syncToSupabase(){
+ if(cloudSyncing)return;
+ cloudSyncing=true;
+ try{
+  const jobs=[];
+  if(data.teachers?.length) jobs.push(supabaseClient.from("teachers").upsert(data.teachers.map(t=>({id:t.id,teacher_id:t.teacherId||t.username||("TCH"+String(t.id).padStart(3,"0")),name:t.name,username:t.username||t.teacherId||null,password:t.password||"1234",subjects:t.subjects||[],classes:t.classes||[]})),{onConflict:"id"}));
+  if(data.standards?.length) jobs.push(supabaseClient.from("standards").upsert(data.standards.map(st=>({id:st.id,name:st.name,sections:st.sections||[],class_teacher:st.classTeacher||null,room:st.room||null})),{onConflict:"id"}));
+  if(data.students?.length) jobs.push(supabaseClient.from("students").upsert(data.students.map(st=>({id:st.id,student_id:st.studentId||("STU-"+String(st.id).padStart(3,"0")),name:st.name,standard:st.standard||null,section:(st.class||"").split("-")[1]||null,roll_number:String(st.roll||"")})),{onConflict:"id"}));
+  if(data.subjects?.length) jobs.push(supabaseClient.from("subjects").upsert(data.subjects.map((name,i)=>({id:i+1,name})),{onConflict:"id"}));
+  if(data.timetable?.length) jobs.push(supabaseClient.from("timetable").upsert(data.timetable.map(r=>({id:r.id,day:r.day,time:r.time,subject:r.subject,teacher:r.teacher,standard:r.standard,room:r.room||null})),{onConflict:"id"}));
+  if(data.exams?.length) jobs.push(supabaseClient.from("exams").upsert(data.exams.map(e=>({id:e.id,name:e.name,subject:e.subject,standard:e.standard||null,exam_date:e.date||null,total_marks:e.maxMarks||100})),{onConflict:"id"}));
+  if(data.homework?.length) jobs.push(supabaseClient.from("homework").upsert(data.homework.map(h=>({id:h.id,title:h.title,subject:h.subject||null,standard:h.standard||null,due_date:h.due||null,description:h.description||null})),{onConflict:"id"}));
+  if(data.announcements?.length) jobs.push(supabaseClient.from("announcements").upsert(data.announcements.map(a=>({id:a.id,title:a.title,message:a.text||""})),{onConflict:"id"}));
+  const resultRows=[];
+  (data.students||[]).forEach(st=>(st.examResults||[]).forEach(r=>resultRows.push({student_id:st.studentId||("STU-"+String(st.id).padStart(3,"0")),exam_id:r.examId,subject:r.subject,marks:r.marks,grade:r.grade||null,teacher_feedback:r.feedback||null})));
+  if(resultRows.length)jobs.push(supabaseClient.from("results").upsert(resultRows,{onConflict:"student_id,exam_id,subject"}));
+  // Attendance history is stored as one row per student per date.
+  const attendanceRows=[];
+  Object.entries(data.attendanceHistory||{}).forEach(([date,day])=>Object.entries(day||{}).forEach(([sid,rec])=>{
+    const st=data.students.find(x=>String(x.id)===String(sid));
+    if(st) attendanceRows.push({student_id:st.studentId||("STU-"+String(st.id).padStart(3,"0")),attendance_date:date,status:rec.status,marked_by:current?.name||"App"});
+  }));
+  if(attendanceRows.length)jobs.push(supabaseClient.from("attendance").upsert(attendanceRows,{onConflict:"student_id,attendance_date"}));
+  await Promise.all(jobs);
+ }catch(e){console.warn("Supabase sync unavailable:",e.message)}
+ finally{cloudSyncing=false}
+}
+async function loadFromSupabase(){
+ try{
+  const tables=["teachers","standards","students","subjects","timetable","exams","results","homework","announcements","attendance"];
+  const results=await Promise.all(tables.map(t=>supabaseClient.from(t).select("*")));
+  if(results.some(r=>r.error))return false;
+  const [tr,st,ss,sub,tt,ex,re,hw,an,at]=results;
+  if(tr.data?.length)data.teachers=tr.data.map(t=>({id:t.id,teacherId:t.teacher_id||t.username||("TCH"+String(t.id).padStart(3,"0")),name:t.name,username:t.username||t.teacher_id||("TCH"+String(t.id).padStart(3,"0")),password:t.password||"1234",subjects:t.subjects||[],classes:t.classes||[]}));
+  if(st.data?.length)data.standards=st.data.map(x=>({id:x.id,name:x.name,sections:x.sections||[],classTeacher:x.class_teacher||"",room:x.room||""}));
+  if(ss.data?.length)data.students=data.students.map(old=>{const x=ss.data.find(y=>y.id===old.id||y.student_id===old.studentId);return x?{...old,id:x.id,studentId:x.student_id,name:x.name,standard:x.standard||old.standard,class:x.section?(x.standard+"-"+x.section):old.class,roll:x.roll_number||old.roll}:old}).concat(ss.data.filter(x=>!data.students.some(y=>y.id===x.id||y.studentId===x.student_id)).map(x=>({id:x.id,studentId:x.student_id,name:x.name,standard:x.standard||"",class:x.section?(x.standard+"-"+x.section):(x.standard||""),roll:x.roll_number||"",parent:"",phone:"",attendance:100,attendanceStatus:"Present",marks:{Math:0,Science:0,English:0}})));
+  if(sub.data?.length)data.subjects=sub.data.sort((a,b)=>a.id-b.id).map(x=>x.name);
+  if(tt.data?.length)data.timetable=tt.data.map(x=>({id:x.id,day:x.day,time:x.time,subject:x.subject,teacher:x.teacher,standard:x.standard,room:x.room||""}));
+  if(ex.data?.length)data.exams=ex.data.map(x=>({id:x.id,name:x.name,date:x.exam_date||"",standard:x.standard||"",subject:x.subject,maxMarks:Number(x.total_marks)||100}));
+  if(re.data?.length){
+   data.students.forEach(s=>s.examResults=[]);
+   re.data.forEach(x=>{const st=data.students.find(s=>(s.studentId||("STU-"+String(s.id).padStart(3,"0")))===x.student_id);if(st){if(!st.examResults)st.examResults=[];st.examResults.push({examId:x.exam_id,subject:x.subject,marks:Number(x.marks)||0,grade:x.grade||"",feedback:x.teacher_feedback||""});}});
+  }
+  if(hw.data?.length)data.homework=hw.data.map(x=>({id:x.id,subject:x.subject||"",title:x.title,due:x.due_date||"",status:"Pending"}));
+  if(an.data?.length)data.announcements=an.data.map(x=>({id:x.id,title:x.title,text:x.message||"",date:x.created_at?x.created_at.slice(0,10):""}));
+  if(at.data?.length){data.attendanceHistory={};at.data.forEach(x=>{const st=data.students.find(s=>(s.studentId||("STU-"+String(s.id).padStart(3,"0")))===x.student_id);if(!st)return;data.attendanceHistory[x.attendance_date] ||= {};data.attendanceHistory[x.attendance_date][st.id]={status:x.status,markedAt:x.created_at};});
+   data.students.forEach(s=>{const records=Object.values(data.attendanceHistory).map(d=>d[s.id]).filter(Boolean);if(records.length)s.attendance=Math.round(records.filter(r=>r.status==="Present").length/records.length*100);});
+  }
+  localStorage.setItem("classManagerData",JSON.stringify(data));
+  if(!notificationBaseline.size){
+    notificationBaseline=new Set((data.announcements||[]).map(a=>String(a.id)));
+    notificationSeen=new Set(notificationBaseline);
+  }
+  return true;
+ }catch(e){console.warn("Supabase load unavailable:",e.message);return false}
+}
+
+function toast(s){const t=document.getElementById("toast");t.textContent=s;t.style.display="block";setTimeout(()=>t.style.display="none",2200)}
+function updateNotificationCount(){
+ const unseen=(data.announcements||[]).filter(a=>!notificationSeen.has(String(a.id))).length;
+ const el=document.getElementById("notificationCount");if(el)el.textContent=String(unseen);
+}
+function showNotifications(){
+ const unseen=(data.announcements||[]).filter(a=>!notificationSeen.has(String(a.id)));
+ if(!unseen.length){toast("No new announcements");return;}
+ unseen.slice().reverse().forEach(a=>notificationSeen.add(String(a.id)));
+ updateNotificationCount();
+ announcements();
+ toast(unseen.length===1?"New announcement: "+unseen[0].title:unseen.length+" new announcements");
+}
+async function checkForNewAnnouncements(){
+ if(!current)return;
+ try{
+   const {data:rows,error}=await supabaseClient.from("announcements").select("*").order("created_at",{ascending:false});
+   if(error||!rows)return;
+   const oldIds=new Set((data.announcements||[]).map(a=>String(a.id)));
+   const fresh=rows.filter(x=>!oldIds.has(String(x.id)));
+   if(fresh.length){
+     data.announcements=rows.map(x=>({id:x.id,title:x.title,text:x.message||"",date:x.created_at?x.created_at.slice(0,10):""}));
+     localStorage.setItem("classManagerData",JSON.stringify(data));
+     fresh.forEach(a=>{
+       const id=String(a.id);
+       if(notificationBaseline.has(id)||notificationSeen.has(id))return;
+       notificationSeen.delete(id);
+       if("Notification" in window){
+         if(Notification.permission==="granted") new Notification("School Announcement",{body:(a.title||"New announcement")+(a.message?" — "+a.message:"")});
+       }
+     });
+     updateNotificationCount();
+     toast(fresh.length===1?"📢 New announcement received":"📢 New announcements received");
+   }
+ }catch(e){console.warn("Announcement check unavailable:",e.message)}
+}
+async function enableNotifications(){
+ if(!("Notification" in window)){toast("Browser notifications are not supported");return;}
+ const p=await Notification.requestPermission();
+ if(p!=="granted"){toast("Notification permission not granted");return;}
+ try{
+   await registerSchoolServiceWorker();
+   if(pushRegistration){
+     // Real Web Push subscription requires a VAPID public key supplied by the school's push backend.
+     const vapid=window.SCHOOL_VAPID_PUBLIC_KEY||"";
+     if(vapid && pushRegistration.pushManager){
+       const sub=await pushRegistration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapid});
+       localStorage.setItem("schoolPushSubscription",JSON.stringify(sub));
+     }
+   }
+   toast("Notifications enabled");
+ }catch(e){console.warn("Push subscription unavailable:",e.message);toast("Notifications enabled for this device");}
+}
+
+async async function login(){
+ const role=document.getElementById("role").value,u=document.getElementById("username").value.trim(),p=document.getElementById("password").value;
+ if(!u||!p){toast("Enter login details");return;}
+ if(role==="admin"){
+  const email=u.includes("@")?u:(window.SCHOOL_ADMIN_EMAIL||"");
+  try{const {data:authData,error}=await supabaseClient.auth.signInWithPassword({email,password:p});if(error||!authData?.user){toast("Invalid Admin email or password");return;}const {data:profile,error:pe}=await supabaseClient.from("user_profiles").select("role").eq("id",authData.user.id).single();if(pe||profile?.role!=="admin"){await supabaseClient.auth.signOut();toast("This account is not an Admin account");return;}current={role:"admin",name:USERS.admin.name,authUserId:authData.user.id};await loadFromSupabase();startApp();return;}catch(e){toast("Admin login failed");return;}
+ }
+ if(role==="teacher"){
+  try{const {data:authData,error}=await supabaseClient.auth.signInWithPassword({email:u,password:p});if(error||!authData?.user){toast("Invalid teacher email or password");return;}const {data:profile,error:pe}=await supabaseClient.from("user_profiles").select("role,teacher_id").eq("id",authData.user.id).single();if(pe||profile?.role!=="teacher"){await supabaseClient.auth.signOut();toast("This account is not a Teacher account");return;}await loadFromSupabase();const t=data.teachers.find(x=>(x.teacherId||x.username||"").toLowerCase()===(profile.teacher_id||"").toLowerCase());current={role:"teacher",name:t?.name||u,teacherId:profile.teacher_id,teacherDbId:t?.id,teacherClasses:t?.classes||[],teacherSubjects:t?.subjects||[],authUserId:authData.user.id};startApp();return;}catch(e){toast("Teacher login failed: "+(e.message||""));return;}
+ }
+ if(role==="student"){
+  const sid=u.toUpperCase(),email=sid.toLowerCase().replace(/[^a-z0-9._-]/g,"")+"@school.local";
+  try{const {data:authData,error}=await supabaseClient.auth.signInWithPassword({email,password:p});if(error||!authData?.user){toast("Invalid Student ID or password");return;}const {data:profile,error:pe}=await supabaseClient.from("user_profiles").select("role,student_id").eq("id",authData.user.id).single();if(pe||profile?.role!=="student"){await supabaseClient.auth.signOut();toast("This account is not a Student account");return;}await loadFromSupabase();const st=data.students.find(x=>(x.studentId||"").toUpperCase()===(profile.student_id||sid).toUpperCase());if(!st){await supabaseClient.auth.signOut();toast("Student profile not found");return;}current={role:"student",name:st.name,studentId:st.studentId,studentDbId:st.id,authUserId:authData.user.id};startApp();return;}catch(e){toast("Student login failed: "+(e.message||""));return;}
+ }
+}
+function startApp(){
+ document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";
+ buildNav();show("dashboard");
+ if(!notificationTimer){
+   notificationTimer=setInterval(checkForNewAnnouncements,10000);
+ }
+ updateNotificationCount();
+}
+function updateLoginFields(){const role=document.getElementById("role").value;document.getElementById("loginUserLabel").textContent=role==="student"?"Student ID":role==="teacher"?"Teacher Login Email":"Admin Email";document.getElementById("username").placeholder=role==="student"?"Enter Student ID":role==="teacher"?"Enter teacher email":"Enter Admin email";document.getElementById("passwordField").style.display="block";}
+document.getElementById("role").addEventListener("change",updateLoginFields);updateLoginFields();
+loadFromSupabase().then(ok=>{if(ok)console.log("Supabase data loaded");});
+async function logout(){await supabaseClient.auth.signOut();current=null;document.getElementById("app").style.display="none";document.getElementById("login").style.display="grid"}
+function buildNav(){
+ const menus={student:[["dashboard","Dashboard"],["standard","Standard"],["attendance","Attendance"],["homework","Homework"],["results","Exams & Results"],["timetable","Timetable"],["announcements","Announcements"],["calendar","Calendar"]],
+ teacher:[["dashboard","Dashboard"],["students","Students"],["standard","Standard"],["attendance","Attendance"],["homework","Homework"],["results","Exams & Results"],["timetable","Timetable"],["announcements","Announcements"],["reports","Reports"]],
+ admin:[["dashboard","Dashboard"],["students","Students"],["teachers","Teachers"],["standard","Standard"],["attendance","Attendance"],["homework","Homework"],["results","Exams & Results"],["timetable","Timetable"],["announcements","Announcements"],["reports","Reports"],["settings","Settings"]]};
+ document.getElementById("nav").innerHTML=menus[current.role].map(x=>`<button id="nav-${x[0]}" onclick="show('${x[0]}')">${x[1]}</button>`).join("");
+ document.getElementById("who").textContent=`${current.name} • ${current.role}`;
+}
+function show(page){
+ currentPage=page;document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));document.getElementById("nav-"+page)?.classList.add("active");
+ document.getElementById("pageTitle").textContent=page==="results"?"Exams & Results":page[0].toUpperCase()+page.slice(1);
+ const f={dashboard:dashboard,students:students,teachers:teachers,standard:standard,attendance:attendance,homework:homework,results:results,timetable:timetable,announcements:announcements,reports:reports,calendar:calendar,settings:settings}[page]; if(f) f();
+}
+function dashboard(){
+ const avg=data.students.length?Math.round(data.students.reduce((a,s)=>a+s.attendance,0)/data.students.length):0;
+ document.getElementById("content").innerHTML=`<div class="cards">
+ <div class="card">👨‍🎓 Students<div class="num">${data.students.length}</div></div>
+ <div class="card">📊 Avg Attendance<div class="num">${avg}%</div></div>
+ <div class="card">📝 Homework<div class="num">${data.homework.length}</div></div>
+ <div class="card">📢 Announcements<div class="num">${data.announcements.length}</div></div></div>
+ <div class="grid2"><div class="panel"><div class="panel-head"><h3>Recent Homework</h3></div>${data.homework.slice(0,4).map(h=>`<p><b>${h.subject}</b> — ${h.title}<br><span class="muted">Due ${h.due}</span></p>`).join("")}</div>
+ <div class="panel"><div class="panel-head"><h3>Announcements</h3></div>${data.announcements.slice(0,4).map(a=>`<p><b>${a.title}</b><br>${a.text}<br><span class="muted">${a.date}</span></p>`).join("")}</div></div>`;
+}
+function students(){
+ let list=[...data.students];
+ document.getElementById("content").innerHTML=`<div class="panel"><div class="panel-head"><h3>Students</h3><div class="actions"><input class="search" id="studentSearch" placeholder="Search student..." oninput="renderStudents()"><button class="btn" onclick="studentModal()">+ Add Student</button></div></div><div id="studentTable"></div></div>`;
+ renderStudents();
+}
+function renderStudents(){
+ let q=(document.getElementById("studentSearch")?.value||"").toLowerCase();
+ let list=visibleStudentsForRole().filter(s=>`${s.name} ${s.class} ${s.roll}`.toLowerCase().includes(q));
+ const actions=current.role==="student"?"":"<th>Actions</th>";
+ document.getElementById("studentTable").innerHTML=`<div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Name</th><th>Standard</th><th>Class</th><th>Roll</th><th>Parent</th><th>Phone</th><th>Attendance</th>${actions}</tr></thead><tbody>${list.map(s=>`<tr><td><b>${s.studentId||("STU-"+String(s.id).padStart(3,"0"))}</b></td><td><b>${s.name}</b></td><td>${s.standard||s.class}</td><td>${s.class}</td><td>${s.roll}</td><td>${s.parent}</td><td>${s.phone}</td><td>${s.attendance}%</td>${current.role==="student"?"":`<td><div class="actions"><button class="btn small" onclick="studentModal(${s.id})">Edit</button><button class="btn success small" onclick="marksModal(${s.id})">Marks</button><button class="btn danger small" onclick="deleteStudent(${s.id})">Delete</button></div></td>`}</tr>`).join("")}</tbody></table></div>`;
+}
+function studentModal(id){
+ if(current?.role==="student"){toast("Students cannot edit their details");return;}
+ const s=data.students.find(x=>x.id===id)||{studentId:"",name:"",class:"9-A",standard:"9th",roll:"",parent:"",phone:"",attendance:100,attendanceStatus:"Present",marks:{Math:0,Science:0,English:0}};
+ openModal(id?"Edit Student":"Add Student",`<div class="form form-grid">
+ <div><label>Student ID</label><input id="sStudentId" value="${s.studentId||("STU-"+String(s.id).padStart(3,"0"))}" placeholder="e.g. STU-004"></div><div><label>Name</label><input id="sName" value="${s.name}"></div><div><label>Standard</label><input id="sStandard" value="${s.standard||""}" placeholder="e.g. 9th"></div>
+ <div><label>Class / Division</label><input id="sClass" value="${s.class}"></div><div><label>Roll No.</label><input id="sRoll" value="${s.roll}"></div>
+ <div><label>Parent Name</label><input id="sParent" value="${s.parent}"></div><div><label>Phone Number</label><input id="sPhone" value="${s.phone}"></div><div><label>Attendance %</label><input id="sAtt" type="number" min="0" max="100" value="${s.attendance}"></div>
+ ${id?"":"<div><label>Student Login Password</label><input id=\"sPassword\" type=\"password\" placeholder=\"Create student password\"></div>"}
+ </div><button class="btn" style="margin-top:16px" onclick="saveStudent(${id||0})">Save Student</button>`);
+}
+async function saveStudent(id){
+ if(current?.role!=="admin"){toast("Only Admin can add or edit students");return;}
+ const newId=id||Date.now();
+ const studentId=v("sStudentId")||("STU-"+String(newId).padStart(3,"0"));
+ const obj={id:newId,studentId,name:v("sName"),standard:v("sStandard"),class:v("sClass"),roll:v("sRoll"),parent:v("sParent"),phone:v("sPhone"),attendance:Number(v("sAtt"))||0,attendanceStatus:(Number(v("sAtt"))||0)>=75?"Present":"Absent",marks:{Math:0,Science:0,English:0}};
+ if(id){
+   const old=data.students.find(s=>s.id===id);
+   obj.marks=old?.marks||{};
+   data.students=data.students.map(s=>s.id===id?obj:s);
+   save();closeModal();students();toast("Student updated");
+   return;
+ }
+ const password=v("sPassword");
+ if(password.length<6){toast("Student password must be at least 6 characters");return;}
+ try{
+   const {data:fnData,error}=await supabaseClient.functions.invoke("create-student-user",{
+     body:{studentId,name:obj.name,standard:obj.standard,section:(obj.class||"").split("-")[1]||"",rollNumber:obj.roll,password}
+   });
+   if(error)throw error;
+   if(fnData?.error)throw new Error(fnData.error);
+   data.students.push(obj);
+   save();
+   await loadFromSupabase();
+   closeModal();students();
+   toast("Student + login created successfully");
+ }catch(e){
+   console.error(e);
+   toast("Student creation failed: "+(e.message||"Check Admin login"));
+ }
+}
+function deleteStudent(id){if(confirm("Delete this student?")){data.students=data.students.filter(s=>s.id!==id);save();students();toast("Student deleted")}}
+function marksModal(id){
+ const s=data.students.find(x=>x.id===id),m=s.marks||{};
+ openModal("Edit Marks — "+s.name,`<div class="form form-grid">
+ <div><label>Mathematics</label><input id="mMath" type="number" min="0" max="100" value="${m.Math||0}"></div>
+ <div><label>Science</label><input id="mScience" type="number" min="0" max="100" value="${m.Science||0}"></div>
+ <div><label>English</label><input id="mEnglish" type="number" min="0" max="100" value="${m.English||0}"></div>
+ </div><button class="btn success" style="margin-top:16px" onclick="saveMarks(${id})">Save Marks</button>`);
+}
+function saveMarks(id){let s=data.students.find(x=>x.id===id);s.marks={Math:Number(v("mMath"))||0,Science:Number(v("mScience"))||0,English:Number(v("mEnglish"))||0};save();closeModal();students();toast("Marks updated")}
+function attendance(){
+ if(current.role==="student"){
+   const st=data.students.find(s=>s.id===current.studentDbId)||data.students[0];
+   const ownClass=st?.class||st?.standard||"";
+   const ownStudents=st?[st]:[];
+   document.getElementById("content").innerHTML=`<div class="panel"><div class="panel-head"><h3>Attendance</h3><span class="muted">View only • ${ownClass}</span></div><div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Name</th><th>Standard</th><th>Attendance %</th><th>Status</th></tr></thead><tbody>${ownStudents.map(x=>`<tr><td>${x.studentId||("STU-"+String(x.id).padStart(3,"0"))}</td><td>${x.name}</td><td>${x.standard||x.class}</td><td>${x.attendance}%</td><td><span class="badge ${x.attendanceStatus==="Absent"?"absent":"present"}">${x.attendanceStatus||"Present"}</span></td></tr>`).join("")}</tbody></table></div></div>`;
+   return;
+ }
+ if(!data.attendanceHistory)data.attendanceHistory={};
+ const now=new Date();const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+ const dates=Object.keys(data.attendanceHistory).sort().reverse();
+ const selected=(window.attendanceSelectedDate||today);
+ const selectedStandard=window.attendanceSelectedStandard||"";
+ const teacher=data.teachers.find(t=>t.id===current.teacherDbId || (t.teacherId||t.username||"").toLowerCase()===(current.teacherId||"").toLowerCase());
+ let allowedStandards=(data.standards||[]).flatMap(st=>(st.sections||[]).length?st.sections.map(sec=>`${st.name}-${sec}`):[st.name]);
+ if(current.role==="teacher") allowedStandards=(teacher?.classes||[]);
+ const visibleStudents=data.students.filter(st=>{
+   const cls=st.class||st.standard||"";
+   if(current.role==="teacher" && allowedStandards.length && !allowedStandards.includes(cls) && !allowedStandards.includes(st.standard||"")) return false;
+   return !selectedStandard || cls===selectedStandard || (st.standard||"")===selectedStandard;
+ });
+ const day=data.attendanceHistory[selected]||{};
+ const standardOptions=allowedStandards.map(x=>`<option value="${x}" ${selectedStandard===x?"selected":""}>${x}</option>`).join("");
+ document.getElementById("content").innerHTML=`<div class="panel"><div class="panel-head"><h3>Daily Attendance</h3><div class="actions"><label>Date <input id="attendanceDate" type="date" value="${selected}" onchange="attendanceSelectedDate=this.value;attendance()"></label><label>Standard <select id="attendanceStandard" onchange="attendanceSelectedStandard=this.value;attendance()"><option value="">All Assigned Standards</option>${standardOptions}</select></label><button class="btn success" onclick="saveDailyAttendance()">Save All</button></div></div><p class="muted">${current.role==="admin"?"Admin can select any standard.":"Teacher can select only assigned standards."} Students outside the selected standard are hidden.</p><div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Name</th><th>Standard</th><th>Status</th></tr></thead><tbody>${visibleStudents.map(st=>{const rec=day[st.id]||{};const status=rec.status||st.attendanceStatus||"Present";return `<tr><td>${st.studentId||("STU-"+String(st.id).padStart(3,"0"))}</td><td><b>${st.name}</b></td><td>${st.standard||st.class}</td><td><select id="daily-status-${st.id}" style="padding:7px"><option value="Present" ${status==="Present"?"selected":""}>Present</option><option value="Absent" ${status==="Absent"?"selected":""}>Absent</option></select></td></tr>`}).join("")||`<tr><td colspan="4" class="muted">No students found for this standard.</td></tr>`}</tbody></table></div></div><div class="panel"><h3>Saved Attendance Dates</h3><div class="actions">${dates.length?dates.map(d=>`<button class="btn secondary small" onclick="attendanceSelectedDate='${d}';attendance()">${d}</button>`).join(""):"<span class='muted'>No daily attendance has been saved yet.</span>"}</div></div>`;
+}
+function saveDailyAttendance(){
+ if(current.role!=="admin" && current.role!=="teacher"){toast("Only Admin or Teacher can change attendance");return;}
+ const date=document.getElementById("attendanceDate")?.value;if(!date){toast("Select a date");return;}
+ if(!data.attendanceHistory)data.attendanceHistory={};
+ const selectedStandard=document.getElementById("attendanceStandard")?.value||"";
+ const teacher=data.teachers.find(t=>t.id===current.teacherDbId || (t.teacherId||t.username||"").toLowerCase()===(current.teacherId||"").toLowerCase());
+ let allowedStandards=(data.standards||[]).flatMap(st=>(st.sections||[]).length?st.sections.map(sec=>`${st.name}-${sec}`):[st.name]);
+ if(current.role==="teacher") allowedStandards=(teacher?.classes||[]);
+ const studentsToSave=data.students.filter(st=>{
+   const cls=st.class||st.standard||"";
+   const allowed=current.role==="teacher" ? (!allowedStandards.length || allowedStandards.includes(cls) || allowedStandards.includes(st.standard||"")) : true;
+   return allowed && (!selectedStandard || cls===selectedStandard || (st.standard||"")===selectedStandard);
+ });
+ const day={...(data.attendanceHistory[date]||{})};
+ studentsToSave.forEach(st=>{const status=document.getElementById("daily-status-"+st.id)?.value;if(!status)return;day[st.id]={status,markedAt:new Date().toISOString()};st.attendanceStatus=status;});
+ data.attendanceHistory[date]=day;
+ data.students.forEach(st=>{const records=Object.values(data.attendanceHistory).map(d=>d[st.id]).filter(Boolean);if(records.length)st.attendance=Math.round(records.filter(r=>r.status==="Present").length/records.length*100);});
+ save();window.attendanceSelectedDate=date;attendance();toast("Daily attendance saved");
+}
+function saveAtt(){if(current.role!=="admin" && current.role!=="teacher"){toast("Only Admin or Teacher can change attendance");return;} }
+function homework(){
+ document.getElementById("content").innerHTML=`<div class="panel"><div class="panel-head"><h3>Homework</h3>${current.role!=="student"?'<button class="btn" onclick="homeworkModal()">+ Add Homework</button>':""}</div><div class="table-wrap"><table><thead><tr><th>Subject</th><th>Homework</th><th>Due</th><th>Status</th>${current.role!=="student"?"<th>Actions</th>":""}</tr></thead><tbody>${data.homework.map(h=>`<tr><td>${h.subject}</td><td>${h.title}</td><td>${h.due}</td><td><span class="badge ${h.status==="Submitted"?"present":"pending"}">${h.status}</span></td>${current.role!=="student"?`<td><div class="actions"><button class="btn small" onclick="homeworkModal(${h.id})">Edit</button><button class="btn danger small" onclick="deleteHomework(${h.id})">Delete</button></div></td>`:""}</tr>`).join("")}</tbody></table></div></div>`;
+}
+function homeworkModal(id){
+ const h=data.homework.find(x=>x.id===id)||{subject:"",title:"",due:"",status:"Pending"};
+ openModal(id?"Edit Homework":"Add Homework",`<div class="form"><label>Subject</label><input id="hSub" value="${h.subject}"><label style="display:block;margin-top:10px">Homework</label><input id="hTitle" value="${h.title}"><label style="display:block;margin-top:10px">Due Date</label><input id="hDue" type="date" value="${h.due}"><label style="display:block;margin-top:10px">Status</label><select id="hStatus"><option ${h.status==="Pending"?"selected":""}>Pending</option><option ${h.status==="Submitted"?"selected":""}>Submitted</option></select><button class="btn" style="margin-top:16px" onclick="saveHomework(${id||0})">Save Homework</button></div>`);
+}
+function saveHomework(id){let o={id:id||Date.now(),subject:v("hSub"),title:v("hTitle"),due:v("hDue"),status:v("hStatus")};if(id)data.homework=data.homework.map(x=>x.id===id?o:x);else data.homework.push(o);save();closeModal();homework();toast("Homework saved")}
+function deleteHomework(id){if(confirm("Delete homework?")){data.homework=data.homework.filter(x=>x.id!==id);save();homework();toast("Homework deleted")}}
+function results(){
+ if(!data.exams)data.exams=[];
+ if(!data.subjects)data.subjects=[];
+ data.students.forEach(s=>{if(!s.examResults)s.examResults=[]});
+ const isStudent=current.role==="student";
+ const canEdit=current.role!=="student";
+ const canManageExams=current.role==="admin";
+ const student=current.role==="student"?data.students.find(s=>s.id===current.studentDbId)||data.students[0]:null;
+ const list=student?[student]:visibleStudentsForRole();
+ const examRows=data.exams.map(e=>`<tr><td><b>${e.name}</b></td><td>${e.date||"-"}</td><td>${e.standard||"-"}</td><td>${e.subject||"-"}</td><td>${e.maxMarks||100}</td>${canManageExams?`<td><div class="actions"><button class="btn small" onclick="examModal(${e.id})">Edit</button><button class="btn danger small" onclick="deleteExam(${e.id})">Remove</button></div></td>`:""}</tr>`).join("");
+ const resultRows=list.flatMap(st=>(st.examResults||[]).map(r=>{
+   const e=data.exams.find(x=>String(x.id)===String(r.examId));
+   const pct=e?Math.round((Number(r.marks)||0)/(Number(e.maxMarks)||100)*100):Number(r.marks)||0;
+   return `<tr><td><b>${st.name}</b></td><td>${e?.name||"-"}</td><td>${r.subject||e?.subject||"-"}</td><td>${r.marks??0} / ${e?.maxMarks||100}</td><td>${r.grade||grade(pct)}</td><td>${r.feedback||"-"}</td>${canEdit?`<td><button class="btn small" onclick="resultModal(${st.id},${r.examId},${JSON.stringify(r.subject||e?.subject||"")})">Edit</button></td>`:""}</tr>`;
+ })).join("");
+ const subjectList=data.subjects.map(sub=>`<span class="badge" style="margin:3px;display:inline-block">${sub}${current.role==="admin"?` <button class="btn danger small" style="margin-left:5px" onclick="removeSubject(${JSON.stringify(sub)})">×</button>`:""}</span>`).join("");
+ document.getElementById("content").innerHTML=`
+ <div class="panel"><div class="panel-head"><h3>Exam Details</h3>${canManageExams?`<div class="actions"><button class="btn" onclick="subjectModal()">+ Add Subject</button><button class="btn" onclick="examModal()">+ Add Exam</button></div>`:`<span class="muted">${isStudent?"View only":"Exam details"}</span>`}</div>
+ <div class="muted" style="margin-bottom:10px">Subjects: ${subjectList||"No subjects added"}</div>
+ <div class="table-wrap"><table><thead><tr><th>Exam</th><th>Date</th><th>Standard</th><th>Subject</th><th>Max Marks</th>${canManageExams?"<th>Actions</th>":""}</tr></thead><tbody>${examRows||`<tr><td colspan="6" class="muted">No exams added yet.</td></tr>`}</tbody></table></div></div>
+ <div class="panel"><div class="panel-head"><h3>Student Results</h3><span class="muted">${isStudent?"View only":"Edit marks, grades and feedback"}</span></div>
+ <div class="table-wrap"><table><thead><tr><th>Student</th><th>Exam</th><th>Subject</th><th>Marks</th><th>Grade</th><th>Feedback</th>${canEdit?"<th>Actions</th>":""}</tr></thead><tbody>${resultRows||`<tr><td colspan="7" class="muted">No result entries yet.${canEdit?" Use Add / Edit Student Result to enter marks.":""}</td></tr>`}</tbody></table></div>
+ ${canEdit?`<div style="margin-top:14px"><button class="btn" onclick="resultModal()">+ Add / Edit Student Result</button></div>`:""}</div>`;
+}
+function subjectModal(){
+ if(current.role!=="admin"){toast("Only Admin can add subjects");return}
+ openModal("Add Subject",`<div class="form"><label>Subject Name</label><input id="subjectName" placeholder="e.g. Hindi"><button class="btn" style="margin-top:16px" onclick="saveSubject()">Add Subject</button></div>`);
+}
+function saveSubject(){
+ const name=v("subjectName").trim();
+ if(!name){toast("Enter subject name");return}
+ if(data.subjects.some(s=>s.toLowerCase()===name.toLowerCase())){toast("Subject already exists");return}
+ data.subjects.push(name);save();closeModal();results();toast("Subject added");
+}
+function removeSubject(name){
+ if(current.role!=="admin"){toast("Only Admin can remove subjects");return}
+ if(!confirm("Remove subject "+name+"?"))return;
+ data.subjects=data.subjects.filter(s=>s!==name);
+ save();results();toast("Subject removed");
+}
+function examModal(id){
+ if(current.role!=="admin"){toast("Only Admin can add or edit exam details");return}
+ const e=data.exams.find(x=>x.id===id)||{name:"",date:"",standard:"",subject:data.subjects[0]||"",maxMarks:100};
+ const subjects=data.subjects.length?data.subjects.map(s=>`<option ${e.subject===s?"selected":""}>${s}</option>`).join(""):"<option value=\"\">Add a subject first</option>";
+ openModal(id?"Edit Exam Details":"Add Exam Details",`<div class="form"><label>Exam Name</label><input id="examName" value="${e.name||""}" placeholder="e.g. Unit Test 2"><label style="display:block;margin-top:10px">Exam Date</label><input id="examDate" type="date" value="${e.date||""}"><label style="display:block;margin-top:10px">Standard</label><input id="examStandard" value="${e.standard||""}" placeholder="e.g. 9th"><label style="display:block;margin-top:10px">Subject</label><select id="examSubject">${subjects}</select><label style="display:block;margin-top:10px">Total Marks</label><input id="examMax" type="number" min="1" value="${e.maxMarks||100}"><button class="btn" style="margin-top:16px" onclick="saveExam(${id||0})">${id?"Save Exam Changes":"Add Exam"}</button></div>`);
+}
+function saveExam(id){
+ if(current.role!=="admin"){toast("Only Admin can save exam details");return}
+ const o={id:id||Date.now(),name:v("examName").trim(),date:v("examDate"),standard:v("examStandard").trim(),subject:v("examSubject"),maxMarks:Number(v("examMax"))||100};
+ if(!o.name||!o.subject){toast("Enter exam name and subject");return}
+ if(id){const old=data.exams.find(x=>x.id===id);if(!old){toast("Exam not found");return}Object.assign(old,o)}else data.exams.push(o);
+ save();closeModal();results();toast(id?"Exam updated":"Exam added");
+}
+function deleteExam(id){
+ if(current.role!=="admin"){toast("Only Admin can remove exams");return}
+ const e=data.exams.find(x=>x.id===id);if(!e)return;
+ if(!confirm("Remove exam "+e.name+"? Existing result entries for this exam will also be removed."))return;
+ data.exams=data.exams.filter(x=>x.id!==id);
+ data.students.forEach(s=>s.examResults=(s.examResults||[]).filter(r=>String(r.examId)!==String(id)));
+ save();results();toast("Exam removed");
+}
+function resultModal(studentId,examId,subject){
+ if(current.role==="student"){toast("Students cannot edit results");return}
+ const st=studentId?data.students.find(x=>x.id===studentId):data.students[0];
+ if(!st){toast("No student found");return}
+ const exams=data.exams||[];
+ const existing=studentId&&examId?(st.examResults||[]).find(r=>String(r.examId)===String(examId)&&String(r.subject)===String(subject)):null;
+ const selectedExam=exams.find(e=>String(e.id)===String(examId))||exams[0];
+ const examOptions=exams.map(e=>`<option value="${e.id}" ${selectedExam&&String(selectedExam.id)===String(e.id)?"selected":""}>${e.name} — ${e.subject||""} (${e.standard||"All"})</option>`).join("");
+ const studentOptions=data.students.map(s=>`<option value="${s.id}" ${st.id===s.id?"selected":""}>${s.name} — ${s.studentId||""}</option>`).join("");
+ const currentSubject=subject||existing?.subject||selectedExam?.subject||data.subjects[0]||"";
+ const subjectOptions=data.subjects.map(s=>`<option ${currentSubject===s?"selected":""}>${s}</option>`).join("");
+ openModal(existing?"Edit Student Result":"Add Student Result",`<div class="form"><label>Student</label><select id="resultStudent">${studentOptions}</select><label style="display:block;margin-top:10px">Exam</label><select id="resultExam">${examOptions||"<option value=\"\">No exams available</option>"}</select><label style="display:block;margin-top:10px">Subject</label><select id="resultSubject">${subjectOptions}</select><label style="display:block;margin-top:10px">Marks</label><input id="resultMarks" type="number" min="0" value="${existing?.marks??0}"><label style="display:block;margin-top:10px">Grade</label><select id="resultGrade"><option value="">Auto from marks</option><option>A+</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select><label style="display:block;margin-top:10px">Teacher Feedback</label><textarea id="resultFeedback" placeholder="Optional feedback">${existing?.feedback||""}</textarea><button class="btn success" style="margin-top:16px" onclick="saveResult()">Save Result</button></div>`);
+ if(existing?.grade){const g=document.getElementById("resultGrade");if(g)g.value=existing.grade;}
+}
+function saveResult(){
+ if(current.role==="student"){toast("Students cannot edit results");return}
+ const studentId=Number(v("resultStudent"));const examId=Number(v("resultExam"));const subject=v("resultSubject");const marks=Number(v("resultMarks"));
+ const st=data.students.find(x=>x.id===studentId);const exam=data.exams.find(x=>x.id===examId);
+ if(!st||!exam||!subject){toast("Select student, exam and subject");return}
+ if(marks<0||marks>Number(exam.maxMarks||100)){toast("Marks must be between 0 and "+(exam.maxMarks||100));return}
+ const pct=Math.round(marks/(Number(exam.maxMarks)||100)*100);const g=v("resultGrade")||grade(pct);
+ if(!st.examResults)st.examResults=[];
+ const old=st.examResults.find(r=>String(r.examId)===String(examId)&&String(r.subject)===String(subject));
+ const obj={examId,subject,marks,grade:g,feedback:v("resultFeedback")};
+ if(old)Object.assign(old,obj);else st.examResults.push(obj);
+ save();closeModal();results();toast(old?"Result updated":"Result added");
+}
+function grade(p){return p>=90?"A+":p>=80?"A":p>=70?"B":p>=60?"C":p>=50?"D":"E"}
+function announcements(){
+ document.getElementById("content").innerHTML=`<div class="panel"><div class="panel-head"><h3>Announcements</h3>${current.role!=="student"?'<button class="btn" onclick="announcementModal()">+ New Announcement</button>':""}</div>${data.announcements.map(a=>`<div style="padding:12px 0;border-bottom:1px solid #edf0f4"><b>${a.title}</b><div>${a.text}</div><span class="muted">${a.date}</span>${current.role!=="student"?`<div class="actions" style="margin-top:7px"><button class="btn danger small" onclick="deleteAnnouncement(${a.id})">Delete</button></div>`:""}</div>`).join("")}</div>`;
+}
+function announcementModal(){
+ openModal("New Announcement",`<div class="form"><label>Title</label><input id="aTitle"><label style="display:block;margin-top:10px">Message</label><textarea id="aText"></textarea><button class="btn" style="margin-top:16px" onclick="saveAnnouncement()">Publish</button></div>`);
+}
+function saveAnnouncement(){data.announcements.unshift({id:Date.now(),title:v("aTitle"),text:v("aText"),date:new Date().toISOString().slice(0,10)});save();closeModal();announcements();toast("Announcement published")}
+function deleteAnnouncement(id){if(confirm("Delete announcement?")){data.announcements=data.announcements.filter(x=>x.id!==id);save();announcements();toast("Announcement deleted")}}
+function teachers(){document.getElementById("content").innerHTML=`<div class="panel"><h3>Teachers</h3><div class="table-wrap"><table><tr><th>Name</th><th>Role</th><th>Subjects</th><th>Login</th></tr><tr><td>Class Teacher</td><td>Teacher</td><td>Mathematics, Science, English</td><td>teacher / 1234</td></tr><tr><td>Administrator</td><td>Admin</td><td>All Subjects / Management</td><td>admin / 1234</td></tr></table></div></div>`}
+function calendar(){document.getElementById("content").innerHTML=`<div class="panel"><h3>Calendar</h3><p>📅 Upcoming: Unit Test — next Monday</p><p>👨‍👩‍👧 Parent Meeting — Saturday</p><p>📝 Homework deadlines are shown under Homework.</p></div>`}
+function settings(){document.getElementById("content").innerHTML=`<div class="panel"><h3>Settings</h3><p class="muted">Application data is stored locally and synchronized with the connected Supabase project when database tables and permissions are available. Admin controls student IDs, teacher accounts, standards, timetable, exams and results.</p><div style="margin-top:14px;padding:12px;border:1px solid #f0d98a;border-radius:10px;background:#fff9e6"><b>Security status</b><p style="margin:6px 0 0">Role-based screen filtering is enabled. Full database-level RLS requires Supabase Auth users and policies tied to <code>auth.uid()</code>; keep the current test policies until that migration is completed.</p></div></div>`}
+function resetData(){}
+function v(id){return document.getElementById(id).value.trim()}
+function openModal(title,body){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=body;document.getElementById("modal").classList.add("show")}
+function closeModal(){document.getElementById("modal").classList.remove("show")}
+
+// Enhanced role features while preserving every original tab and feature.
+function buildNav(){
+ const menus={
+  student:[["dashboard","Dashboard"],["standard","Standard"],["attendance","Attendance"],["homework","Homework"],["results","Exams & Results"],["timetable","Timetable"],["announcements","Announcements"],["calendar","Calendar"]],
+  teacher:[["dashboard","Dashboard"],["students","Students"],["standard","Standard"],["attendance","Attendance"],["homework","Homework"],["results","Exams & Results"],["timetable","Timetable"],["announcements","Announcements"],["reports","Reports"]],
+  admin:[["dashboard","Dashboard"],["students","Students"],["teachers","Teachers"],["standard","Standard"],["attendance","Attendance"],["homework","Homework"],["results","Exams & Results"],["timetable","Timetable"],["announcements","Announcements"],["reports","Reports"],["settings","Settings"]]};
+ document.getElementById("nav").innerHTML=menus[current.role].map(x=>`<button id="nav-${x[0]}" onclick="show('${x[0]}')">${x[1]}</button>`).join("");
+ document.getElementById("who").textContent=`${current.name} • ${current.role}`;
+}
+function dashboard(){
+ const avg=data.students.length?Math.round(data.students.reduce((a,s)=>a+s.attendance,0)/data.students.length):0;
+ if(current.role==="admin")document.getElementById("content").innerHTML=`<div class="cards"><div class="card">👨‍🎓 Total Students<div class="num">${data.students.length}</div></div><div class="card">👩‍🏫 Total Teachers<div class="num">${data.teachers.length}</div></div><div class="card">🏫 Active Classes<div class="num">${data.standards.length}</div></div><div class="card">📚 Subjects<div class="num">${data.subjects.length}</div></div></div><div class="grid2"><div class="panel"><h3>School Overview</h3><p>Students: ${data.students.length}</p><p>Teachers: ${data.teachers.length}</p><p>Standards: ${data.standards.length}</p></div><div class="panel"><h3>Recent Announcements</h3>${data.announcements.slice(0,4).map(a=>`<p><b>${a.title}</b><br>${a.text}</p>`).join("")}</div></div>`;
+ else if(current.role==="teacher"){const t=getCurrentTeacher();const assigned=teacherAllowedClasses();const mine=visibleStudentsForRole();const myAvg=mine.length?Math.round(mine.reduce((a,s)=>a+s.attendance,0)/mine.length):0;document.getElementById("content").innerHTML=`<div class="cards"><div class="card">👩‍🏫 Teacher<div class="num" style="font-size:20px">${current.name}</div></div><div class="card">🏫 Assigned Classes<div class="num" style="font-size:20px">${assigned.length?assigned.join(", "):"None"}</div></div><div class="card">👨‍🎓 Assigned Students<div class="num">${mine.length}</div></div><div class="card">📊 Avg Attendance<div class="num">${myAvg}%</div></div></div><div class="grid2"><div class="panel"><h3>Assigned Classes</h3>${assigned.length?"<p>"+assigned.join("</p><p>")+"</p>":"<p class=\"muted\">No classes assigned yet.</p>"}<p>Subjects: ${(t?.subjects||[]).join(", ")||"-"}</p></div><div class="panel"><h3>Recent Homework</h3>${data.homework.slice(0,4).map(h=>`<p><b>${h.subject}</b> — ${h.title}<br><span class="muted">Due ${h.due}</span></p>`).join("")}</div></div>`;}
+ else {const st=data.students.find(s=>s.id===current.studentDbId)||data.students[0];document.getElementById("content").innerHTML=`<div class="cards"><div class="card">👨‍🎓 Student<div class="num" style="font-size:20px">${st.name}</div></div><div class="card">🆔 Student ID<div class="num" style="font-size:20px">ST-${String(st.id).padStart(3,"0")}</div></div><div class="card">🏫 Standard<div class="num">${st.standard}-${st.class.split("-")[1]||"A"}</div></div><div class="card">📊 Attendance<div class="num">${st.attendance}%</div></div></div><div class="grid2"><div class="panel"><h3>Student Overview</h3><p>Standard & Section: ${st.standard}-${st.class.split("-")[1]||"A"}</p><p>Roll No: ${st.roll}</p></div><div class="panel"><h3>Announcements</h3>${data.announcements.slice(0,3).map(a=>`<p><b>${a.title}</b><br>${a.text}</p>`).join("")}</div></div>`;}
+}
+function teachers(){document.getElementById("content").innerHTML=`<div class="panel"><div class="panel-head"><h3>Teachers</h3><button class="btn" onclick="teacherModal()">+ Add Teacher</button></div><div class="table-wrap"><table><thead><tr><th>Teacher ID</th><th>Name</th><th>Email</th><th>Subjects</th><th>Classes</th><th>Actions</th></tr></thead><tbody>${data.teachers.map(t=>`<tr><td><b>${t.teacherId||t.username||""}</b></td><td>${t.name}</td><td>${t.email||"—"}</td><td>${(t.subjects||[]).join(", ")}</td><td>${(t.classes||[]).join(", ")}</td><td><button class="btn small" onclick="teacherModal(${t.id})">Edit</button></td></tr>`).join("")}</tbody></table></div></div>`}
+function teacherModal(id){const t=data.teachers.find(x=>x.id===id)||{teacherId:"",name:"",email:"",subjects:data.subjects||[],classes:["9-A"]};openModal(id?"Edit Teacher":"Add Teacher",`<div class="form"><label>Teacher ID</label><input id="tId" value="${t.teacherId||""}" placeholder="TCH001"><label style="display:block;margin-top:10px">Name</label><input id="tName" value="${t.name||""}"><label style="display:block;margin-top:10px">Login Email</label><input id="tEmail" type="email" value="${t.email||""}" placeholder="teacher@example.com"><label style="display:block;margin-top:10px">Subjects</label><input id="tSubjects" value="${(t.subjects||[]).join(", ")}"><label style="display:block;margin-top:10px">Assigned Classes</label><input id="tClasses" value="${(t.classes||[]).join(", ")}" placeholder="9-A, 10-B"><label style="display:block;margin-top:10px">Create Password ${id?"(leave blank to keep existing)":""}</label><input id="tPass" type="password" placeholder="Minimum 6 characters"><button class="btn" style="margin-top:16px" onclick="saveTeacher(${id||0})">Save Teacher</button></div>`)}
+async function saveTeacher(id){if(current?.role!=="admin"){toast("Only Admin can add teachers");return}const teacherId=v("tId").toUpperCase(),name=v("tName"),email=v("tEmail"),password=v("tPass"),subjects=v("tSubjects").split(",").map(x=>x.trim()).filter(Boolean),classes=v("tClasses").split(",").map(x=>x.trim()).filter(Boolean);if(!teacherId||!name||!email){toast("Teacher ID, name and email are required");return}if(!id&&password.length<6){toast("Create a password of at least 6 characters");return}if(!/^TCH[0-9A-Z_-]+$/.test(teacherId)){toast("Teacher ID should start with TCH");return}if(!id){try{const {data:fnData,error}=await supabaseClient.functions.invoke("create-teacher-user",{body:{teacherId,email,password,name,subjects,classes}});if(error)throw error;if(fnData?.error)throw new Error(fnData.error);await loadFromSupabase();closeModal();teachers();toast("Teacher + login created successfully");}catch(e){console.error(e);toast("Teacher creation failed: "+(e.message||"Check Admin login"));}return}const old=data.teachers.find(x=>x.id===id);const o={...old,id,teacherId,name,email,subjects,classes,username:teacherId};data.teachers=data.teachers.map(x=>x.id===id?o:x);save();await loadFromSupabase();closeModal();teachers();toast("Teacher updated")}
+function standard(){
+ let list=data.standards||[];
+ if(current.role==="student"){const st=data.students.find(s=>s.id===current.studentDbId);list=list.filter(x=>x.name===st?.standard);}
+ if(current.role==="teacher"){const classes=teacherAllowedClasses();list=list.filter(x=>classes.some(c=>c===x.name||c.startsWith(x.name+"-")));}
+ document.getElementById("content").innerHTML=`<div class="panel"><div class="panel-head"><h3>Standard</h3>${current.role==="admin"?'<button class="btn" onclick="standardModal()">+ Add Standard</button>':''}</div><div class="table-wrap"><table><thead><tr><th>Standard / Grade</th><th>Sections</th><th>Class Teacher</th><th>Room</th><th>Students</th>${current.role==="admin"?'<th>Actions</th>':''}</tr></thead><tbody>${list.map(st=>{let ss=data.students.filter(s=>{const c=s.class||s.standard||'';return c===st.name||c.startsWith(st.name+'-')});return `<tr><td><b>${st.name}</b></td><td>${(st.sections||[]).join(', ')||'-'}</td><td>${st.classTeacher||'-'}</td><td>${st.room||'-'}</td><td>${ss.length}</td>${current.role==="admin"?`<td><div class="actions"><button class="btn small" onclick="standardModal(${st.id})">Edit</button><button class="btn danger small" onclick="removeStandard(${st.id})">Remove</button></div></td>`:''}</tr>`}).join('')||`<tr><td colspan="6" class="muted">No standards added yet.</td></tr>`}</tbody></table></div></div>`;
+}
+function standardModal(id){
+ const st=id?data.standards.find(x=>x.id===id):null;
+ const teachers=(data.teachers||[]).map(t=>t.name);
+ const teacherOptions=teachers.length?teachers.map(t=>`<option ${st?.classTeacher===t?'selected':''}>${t}</option>`).join(''):`<option value="">No teachers added</option>`;
+ openModal(st?'Edit Standard':'Add Standard',`<div class="form"><label>Standard / Grade</label><input id="stName" value="${st?.name||''}" placeholder="e.g. 10th"><label>Sections (comma separated)</label><input id="stSections" value="${(st?.sections||[]).join(', ')}" placeholder="A, B"><label>Class Teacher</label><select id="stTeacher"><option value="">Select class teacher</option>${teacherOptions}</select><label>Room</label><input id="stRoom" value="${st?.room||''}" placeholder="e.g. Room 101"><button class="btn" style="margin-top:16px" onclick="saveStandard(${id||0})">${st?'Save Changes':'Add Standard'}</button></div>`);
+}
+function saveStandard(id){
+ const name=v('stName').trim();
+ if(!name){toast('Enter a standard');return;}
+ const sections=v('stSections').split(',').map(x=>x.trim()).filter(Boolean);
+ const obj={name,sections,classTeacher:v('stTeacher').trim(),room:v('stRoom').trim()};
+ if(id){const st=data.standards.find(x=>x.id===id);if(!st){toast('Standard not found');return}Object.assign(st,obj)}else data.standards.push({id:Date.now(),...obj});
+ save();closeModal();standard();toast(id?'Standard updated':'Standard added');
+}
+function removeStandard(id){
+ const st=data.standards.find(x=>x.id===id);if(!st)return;
+ if(!confirm(`Remove standard ${st.name}?`))return;
+ data.standards=data.standards.filter(x=>x.id!==id);
+ save();standard();toast('Standard removed');
+}
+function reports(){const reportStudents=visibleStudentsForRole();document.getElementById("content").innerHTML=`<div class="cards"><div class="card">Total Students<div class="num">${data.students.length}</div></div><div class="card">Average Attendance<div class="num">${data.students.length?Math.round(data.students.reduce((a,s)=>a+s.attendance,0)/data.students.length):0}%</div></div><div class="card">Subjects<div class="num">${data.subjects.length}</div></div><div class="card">Exams<div class="num">${data.exams.length}</div></div></div><div class="panel"><div class="panel-head"><h3>Student Performance Report</h3><span class="muted">${current.role==="student"?"View only":"Edit feedback available"}</span></div>${reportStudents.map(s=>{let m=s.marks||{},p=Math.round(((m.Math||0)+(m.Science||0)+(m.English||0))/3);return `<div style="padding:12px 0;border-bottom:1px solid #edf0f4"><b>${s.name}</b> — ${p}% (${grade(p)}) — Attendance ${s.attendance}%${current.role!=="student"?`<button class="btn small" style="float:right" onclick="feedbackModal(${s.id})">Edit Feedback</button>`:""}<div class="muted">${s.feedback||"No teacher feedback yet."}</div></div>`}).join("")}</div>`}
+function feedbackModal(id){const s=data.students.find(x=>x.id===id);openModal("Teacher Feedback — "+s.name,`<div class="form"><label>Feedback</label><textarea id="feedbackText">${s.feedback||""}</textarea><button class="btn" style="margin-top:16px" onclick="saveFeedback(${id})">Save Feedback</button></div>`)}
+function saveFeedback(id){data.students.find(x=>x.id===id).feedback=v("feedbackText");save();closeModal();reports();toast("Feedback updated")}
+function timetable(){
+ const rows=data.timetable||[];
+ let visible=rows;
+ if(current.role==="teacher"){
+   const t=getCurrentTeacher();
+   visible=t?rows.filter(x=>x.teacher===t.name||((t.classes||[]).includes(x.standard))):rows;
+ }else if(current.role==="student"){
+   const st=data.students.find(x=>x.id===current.studentDbId);
+   const cls=st?.class||st?.standard||'';
+   visible=rows.filter(x=>x.standard===cls||x.standard===((st?.standard||'')+'-'+((cls.split('-')[1])||'A')));
+ }
+ document.getElementById("content").innerHTML=`<div class="panel"><div class="panel-head"><h3>${current.role==="teacher"?"My Teaching Schedule":current.role==="student"?"Daily Timetable":"Timetable"}</h3>${current.role==="admin"?'<button class="btn" onclick="slotModal()">+ Add Timetable Slot</button>':'<span class="muted">Read-only schedule</span>'}</div><div class="table-wrap"><table><thead><tr><th>Day</th><th>Time / Period</th><th>Subject</th><th>Teacher Name</th><th>Standard / Section</th><th>Room</th>${current.role==="admin"?'<th>Actions</th>':''}</tr></thead><tbody>${visible.map(x=>`<tr><td>${x.day}</td><td><b>${x.time}</b></td><td>${x.subject}</td><td>${x.teacher}</td><td>${x.standard}</td><td>${x.room||'-'}</td>${current.role==="admin"?`<td><div class="actions"><button class="btn small" onclick="slotModal(${x.id})">Edit</button><button class="btn danger small" onclick="removeTimetable(${x.id})">Remove</button></div></td>`:''}</tr>`).join('')||`<tr><td colspan="7" class="muted">No timetable entries found.</td></tr>`}</tbody></table></div></div>`;
+}
+function slotModal(id){
+ const x=id?(data.timetable||[]).find(a=>a.id===id):null;
+ const teachers=(data.teachers||[]).map(t=>t.name);
+ const subjects=(data.subjects||[]);
+ const standards=(data.standards||[]).flatMap(st=>(st.sections&&st.sections.length?st.sections:[null]).map(sec=>sec?`${st.name}-${sec}`:st.name));
+ const teacherOptions=teachers.length?teachers.map(t=>`<option ${x?.teacher===t?'selected':''}>${t}</option>`).join(''):'<option>Class Teacher</option>';
+ const subjectOptions=subjects.length?subjects.map(t=>`<option ${x?.subject===t?'selected':''}>${t}</option>`).join(''):'';
+ const standardOptions=standards.length?standards.map(t=>`<option ${x?.standard===t?'selected':''}>${t}</option>`).join(''):'';
+ openModal(id?'Edit Timetable Details':'Add Timetable Slot',`<div class="form"><label>Day</label><select id="ttDay">${["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map(d=>`<option ${x?.day===d?'selected':''}>${d}</option>`).join('')}</select><label style="display:block;margin-top:10px">Time / Period</label><input id="ttTime" value="${x?.time||''}" placeholder="e.g. 09:00 - 09:45"><label style="display:block;margin-top:10px">Subject</label><select id="ttSubject">${subjectOptions||`<option>${x?.subject||''}</option>`}</select><label style="display:block;margin-top:10px">Teacher Name</label><select id="ttTeacher">${teacherOptions}</select><label style="display:block;margin-top:10px">Standard / Section</label><select id="ttStandard">${standardOptions||`<option>${x?.standard||''}</option>`}</select><label style="display:block;margin-top:10px">Room</label><input id="ttRoom" value="${x?.room||''}" placeholder="e.g. Room 101"><button class="btn" style="margin-top:16px" onclick="saveSlot(${id||0})">${id?'Save Changes':'Add Timetable Slot'}</button></div>`);
+}
+function saveSlot(id){
+ const o={id:id||Date.now(),day:v("ttDay"),time:v("ttTime").trim(),subject:v("ttSubject"),teacher:v("ttTeacher"),standard:v("ttStandard"),room:v("ttRoom").trim()};
+ if(!o.time||!o.subject||!o.teacher||!o.standard){toast("Please fill day, time, subject, teacher and standard");return}
+ if(id){const old=data.timetable.find(x=>x.id===id);if(!old){toast('Timetable entry not found');return}Object.assign(old,o)}else data.timetable.push(o);
+ save();closeModal();timetable();toast(id?'Timetable updated':'Timetable entry added');
+}
+function removeTimetable(id){
+ const x=(data.timetable||[]).find(a=>a.id===id);if(!x)return;
+ if(!confirm(`Remove ${x.day} ${x.time} — ${x.subject}?`))return;
+ data.timetable=data.timetable.filter(a=>a.id!==id);save();timetable();toast('Timetable entry removed');
+}
+
+registerSchoolServiceWorker();
+</script>
+</body>
+</html>
