@@ -13,7 +13,7 @@ jobs:
 
       - name: Extract Android project
         run: |
-          unzip -q ClassManagementAndroidProject.zip
+          unzip -q SmaartEducareAndroidProject_v1.1.zip
           mkdir -p android-app
           cp -r ClassManagementAndroid/. android-app/
 
