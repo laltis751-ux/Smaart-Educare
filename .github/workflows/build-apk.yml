@@ -13,9 +13,21 @@ jobs:
 
       - name: Extract Android project
         run: |
-          unzip -q SmaartEducareAndroidProject_v1.1.zip
-          mkdir -p android-app
-          cp -r ClassManagementAndroid/. android-app/
+          rm -rf android-app extracted
+          mkdir -p extracted android-app
+
+          unzip -q SmaartEducareAndroidProject_v1.1.zip -d extracted
+
+          PROJECT_ROOT=$(find extracted -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -print -quit | xargs -r dirname)
+
+          if [ -z "$PROJECT_ROOT" ]; then
+            echo "ERROR: Android Gradle project not found in ZIP"
+            find extracted -maxdepth 3 -type f | head -100
+            exit 1
+          fi
+
+          echo "Android project found at: $PROJECT_ROOT"
+          cp -r "$PROJECT_ROOT"/. android-app/
 
       - name: Set up Java
         uses: actions/setup-java@v4
